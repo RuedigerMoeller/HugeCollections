@@ -31,7 +31,7 @@
     <version>3.1.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
     <name>OpenHFT/HugeCollections/collections</name>
-    <description>Java Collections which are designed to be huge (may GB)</description>
+    <description>Java Collections which are designed to be huge (many GB)</description>
 
     <dependencyManagement>
         <dependencies>
@@ -124,6 +124,21 @@
     <build>
         <plugins>
 
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <additionalparam>-Xdoclint:none</additionalparam>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
