@@ -1376,7 +1376,7 @@ abstract class AbstractVanillaSharedHashMap<K, V> extends AbstractMap<K, V>
             return lastReturned.readInstance(kClass,null);
         }
 
-        public V getCurrentValue() {
+        public V getCurrentValue() { // FIXME: is this thread safe in case next is already in next segment ?
             return segments[lastSegmentIndex].readValue(lastReturned, null);
         }
 
