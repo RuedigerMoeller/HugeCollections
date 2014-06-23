@@ -63,6 +63,11 @@ public class CheckSharedHashMap<K, V> implements SharedHashMap<K, V> {
     }
 
     @Override
+    public ByteEntryIterator<K, V> getByteEntryIterator() {
+        return delegate.getByteEntryIterator();
+    }
+
+    @Override
     public void close() throws IOException {
         delegate.close();
     }

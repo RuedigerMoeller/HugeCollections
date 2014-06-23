@@ -59,4 +59,13 @@ public interface SharedHashMap<K, V> extends ConcurrentMap<K, V>, Closeable {
      */
     File file();
 
+    /**
+     * Iterate raw nativebytes of each entry. The bytes handed in are valid only until the next
+     * element is fetched from the iterator.
+     * Use getCurrentKey() / getCurrentValue() on the iterator to trigger decoding (only valid in-thread, can't keep a ref to the bytes !).
+     *
+     * @return an entry iterator on raw nativebytes of an entry.
+     */
+    ByteEntryIterator<K,V> getByteEntryIterator();
+
 }

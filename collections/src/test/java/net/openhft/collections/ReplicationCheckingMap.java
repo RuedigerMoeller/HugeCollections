@@ -267,6 +267,10 @@ public class ReplicationCheckingMap<K, V> implements SharedHashMap<K, V> {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public ByteEntryIterator<K, V> getByteEntryIterator() {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public void close() throws IOException {

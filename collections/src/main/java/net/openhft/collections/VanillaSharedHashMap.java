@@ -37,7 +37,7 @@ import java.util.*;
 import static java.lang.Thread.currentThread;
 
 
-class VanillaSharedHashMap<K, V> extends AbstractVanillaSharedHashMap<K, V> {
+public class VanillaSharedHashMap<K, V> extends AbstractVanillaSharedHashMap<K, V> {
 
     public VanillaSharedHashMap(SharedHashMapBuilder builder, File file,
                                 Class<K> kClass, Class<V> vClass) throws IOException {
@@ -574,6 +574,10 @@ abstract class AbstractVanillaSharedHashMap<K, V> extends AbstractMap<K, V>
         }
     }
 
+    public ByteEntryIterator<K,V> getByteEntryIterator() {
+        return new ByteEntryIteratorImpl();
+    }
+
     // these methods should be package local, not public or private.
     class Segment implements SharedSegment {
         /*
@@ -632,7 +636,6 @@ abstract class AbstractVanillaSharedHashMap<K, V> extends AbstractMap<K, V>
         public int getIndex() {
             return index;
         }
-
 
         /* Methods with private access modifier considered private to Segment
          * class, although Java allows to access them from outer class anyway.
@@ -1282,6 +1285,13 @@ abstract class AbstractVanillaSharedHashMap<K, V> extends AbstractMap<K, V>
             hashLookup.forEach(entryConsumer);
         }
 
+        public NativeBytes getByteEntry(long pos) {
+            long offset = offsetFromPos(pos);
+            NativeBytes entry = entry(offset);
+            entry.readStopBit();
+            return entry;
+        }
+
         public Entry<K, V> getEntry(long pos) {
             long offset = offsetFromPos(pos);
             NativeBytes entry = entry(offset);
@@ -1344,18 +1354,30 @@ abstract class AbstractVanillaSharedHashMap<K, V> extends AbstractMap<K, V>
                 if (this.pos == pos) count++;
             }
         }
+
     }
 
-    final class EntryIterator implements Iterator<Entry<K, V>>, IntIntMultiMap.EntryConsumer {
+    public final class ByteEntryIteratorImpl implements ByteEntryIterator<K,V> {
 
         int segmentIndex = segments.length;
 
-        Entry<K, V> nextEntry, lastReturned;
+        NativeBytes nextEntry;
+        MultiStoreBytes lastReturned;
+        int lastSegmentIndex;
 
         Deque<Integer> segmentPositions = new ArrayDeque<Integer>(); //todo: replace with a more efficient, auto resizing int[]
 
-        EntryIterator() {
-            nextEntry = nextSegmentEntry();
+        ByteEntryIteratorImpl() {
+            nextEntry = nextSegmentByteEntry();
+            lastReturned = new MultiStoreBytes();
+        }
+
+        public K getCurrentKey() {
+            return lastReturned.readInstance(kClass,null);
+        }
+
+        public V getCurrentValue() {
+            return segments[lastSegmentIndex].readValue(lastReturned, null);
         }
 
         public boolean hasNext() {
@@ -1363,21 +1385,24 @@ abstract class AbstractVanillaSharedHashMap<K, V> extends AbstractMap<K, V>
         }
 
         public void remove() {
-            if (lastReturned == null) throw new IllegalStateException();
-            AbstractVanillaSharedHashMap.this.remove(lastReturned.getKey());
-            lastReturned = null;
+            throw new RuntimeException("not implemented");
+//            if (lastReturned == null) throw new IllegalStateException();
+//            AbstractVanillaSharedHashMap.this.remove(lastReturned.getKey());
+//            lastReturned = null;
         }
 
-        public Map.Entry<K, V> next() {
-            Entry<K, V> e = nextEntry;
+        public NativeBytes next() {
+            NativeBytes e = nextEntry;
             if (e == null)
                 throw new NoSuchElementException();
-            lastReturned = e; // cannot assign until after null check
-            nextEntry = nextSegmentEntry();
+            // keep last returned for lazy decoding
+            lastReturned.storePositionAndSize(nextEntry, nextEntry.position(), nextEntry.size() - nextEntry.position());
+            lastSegmentIndex = segmentIndex; // also need lastSegmentIndex
+            nextEntry = nextSegmentByteEntry();
             return e;
         }
 
-        Entry<K, V> nextSegmentEntry() {
+        NativeBytes nextSegmentByteEntry() {
             while (segmentIndex >= 0) {
                 if (segmentPositions.isEmpty()) {
                     switchToNextSegment();
@@ -1386,7 +1411,7 @@ abstract class AbstractVanillaSharedHashMap<K, V> extends AbstractMap<K, V>
                     segment.lock();
                     try {
                         while (!segmentPositions.isEmpty()) {
-                            Entry<K, V> entry = segment.getEntry(segmentPositions.removeFirst());
+                            NativeBytes entry = segment.getByteEntry(segmentPositions.removeFirst());
                             if (entry != null) {
                                 return entry;
                             }
@@ -1417,6 +1442,30 @@ abstract class AbstractVanillaSharedHashMap<K, V> extends AbstractMap<K, V>
         public void accept(int key, int value) {
             segmentPositions.add(value);
         }
+    }
+
+    final class EntryIterator implements Iterator<Entry<K, V>> {
+        ByteEntryIteratorImpl byteIter;
+
+        EntryIterator() {
+            byteIter = new ByteEntryIteratorImpl();
+        }
+
+        public boolean hasNext() {
+            return byteIter.hasNext();
+        }
+
+        public void remove() {
+            K currentKey = byteIter.getCurrentKey();
+            if (currentKey == null ) throw new IllegalStateException();
+            AbstractVanillaSharedHashMap.this.remove(currentKey);
+        }
+
+        public Map.Entry<K, V> next() {
+            byteIter.next();
+            return new WriteThroughEntry(byteIter.getCurrentKey(),byteIter.getCurrentValue());
+        }
+
     }
 
     final class EntrySet extends AbstractSet<Map.Entry<K, V>> {
