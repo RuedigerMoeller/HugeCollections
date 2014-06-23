@@ -37,7 +37,7 @@ import java.util.*;
 import static java.lang.Thread.currentThread;
 
 
-public class VanillaSharedHashMap<K, V> extends AbstractVanillaSharedHashMap<K, V> {
+class VanillaSharedHashMap<K, V> extends AbstractVanillaSharedHashMap<K, V> {
 
     public VanillaSharedHashMap(SharedHashMapBuilder builder, File file,
                                 Class<K> kClass, Class<V> vClass) throws IOException {
@@ -1357,7 +1357,7 @@ abstract class AbstractVanillaSharedHashMap<K, V> extends AbstractMap<K, V>
 
     }
 
-    public final class ByteEntryIteratorImpl implements ByteEntryIterator<K,V> {
+    final class ByteEntryIteratorImpl implements ByteEntryIterator<K,V> {
 
         int segmentIndex = segments.length;
 
